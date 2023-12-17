@@ -1,0 +1,14 @@
+header {
+    text-align: center;
+}
+
+main {
+   display: flex;
+   justify-content: center;
+   text-align: center;
+}
+
+section {
+   text-align: center;
+}
+
