@@ -6,13 +6,16 @@ const urlApi = 'https://mindicador.cl/api/';
 const ctx = document.getElementById('myChart').getContext('2d');
 let myLineChart;
 
-const getData = async () => {
+const getData = async (moneda) => {
+    const year = new Date().getFullYear();
+    const endpoint = `${urlApi}${moneda}/${year}`;
+
     try {
-        const res = await fetch(urlApi);
-        const data = await res.json();
-        return data;
+        const res = await fetch(endpoint);
+        if (!res.ok) throw new Error(`Error al obtener datos de la API: ${res.status}`);
+        return await res.json();
     } catch (error) {
-        console.error(error);
+        handleApiError(error);
         return null;
     }
 };
@@ -25,16 +28,14 @@ btnConvertir.addEventListener('click', () => {
 
 const convertir = async (inputValue, selectedCurrency) => {
     try {
-        const data = await getData();
-        if (data) {
-            const conversionRate = data[selectedCurrency.toLowerCase()].valor;
+        const data = await getData(selectedCurrency.toLowerCase());
+        if (data && data.serie) {
+            const conversionRate = data.serie[0].valor;
             const result = inputValue / conversionRate;
             pintar(result);
-        } else {
-            console.error("error al hacer fecth en data");
         }
     } catch (error) {
-        console.error(error);
+        console.error('Error en convertir:', error);
     }
 };
 
@@ -47,55 +48,43 @@ monedaSelector.addEventListener('change', () => {
     renderGrafica(selectedCurrency);
 });
 
-const prepararConfiguracionParaLaGrafica = (monedas) => {
-    const tipoDeGrafica = "line";
-    const nombresDeLasMonedas = Object.keys(monedas);
-    const titulo = "Monedas";
-    const colorDeLinea = "red";
-    const valores = Object.values(monedas).map((moneda) => {
-        const valor = typeof moneda.valor === 'number' ? moneda.valor : null;
-        return valor;
-    });
+const prepararConfiguracionParaLaGrafica = (datos) => {
+    const tipoDeGrafica = 'line';
+    const fechas = datos.serie.slice(-10).map(item => new Date(item.fecha).toLocaleDateString());
+    const valores = datos.serie.slice(-10).map(item => item.valor);
+
     return {
         type: tipoDeGrafica,
         data: {
-            labels: nombresDeLasMonedas,
+            labels: fechas,
             datasets: [{
-                label: titulo,
-                backgroundColor: colorDeLinea,
+                label: `Valor ${datos.codigo.toUpperCase()}`,
+                backgroundColor: 'rgba(0, 123, 255, 0.5)',
+                borderColor: 'rgb(0, 123, 255)',
                 data: valores
             }]
+        },
+        options: {
+            scales: {
+                y: {
+                    beginAtZero: false
+                }
+            }
         }
     };
 };
 
-const renderGrafica = async () => {
+const renderGrafica = async (moneda) => {
     try {
-        const data = await getData();
-        console.log('Data from API:', data);
-        if (myLineChart) {
-            myLineChart.destroy();
+        const data = await getData(moneda.toLowerCase());
+        if (data && data.serie) {
+            if (myLineChart) myLineChart.destroy();
+            const config = prepararConfiguracionParaLaGrafica(data);
+            myLineChart = new Chart(ctx, config);
         }
-        const config = prepararConfiguracionParaLaGrafica(data);
-        ctx.canvas.style.backgroundColor = "white";
-        myLineChart = new Chart(ctx, config);
     } catch (error) {
-        console.error(error);
+        console.error('Error en renderGrafica:', error);
     }
 };
 
-const main = async () => {
-    try {
-        const data = await getData();
-        const valores = Object.entries(data).map((value) => {
-            if (typeof value[1] !== 'string') {
-                console.log(value[1].codigo);
-            }
-        });
-    } catch (error) {
-        console.error(error);
-    }
-};
-
-main();
-renderGrafica();
+window.onload = () => renderGrafica(monedaSelector.value);
