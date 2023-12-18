@@ -7,9 +7,14 @@ const ctx = document.getElementById('myChart').getContext('2d');
 let myLineChart;
 
 const getData = async () => {
-    const res = await fetch(urlApi);
-    const data = await res.json();
-    return data;
+    try {
+        const res = await fetch(urlApi);
+        const data = await res.json();
+        return data;
+    } catch (error) {
+        console.error(error);
+        return null;
+    }
 };
 
 btnConvertir.addEventListener('click', () => {
@@ -21,10 +26,13 @@ btnConvertir.addEventListener('click', () => {
 const convertir = async (inputValue, selectedCurrency) => {
     try {
         const data = await getData();
-        const conversionRate = data[selectedCurrency.toLowerCase()].valor;
-        const result = inputValue / conversionRate;
-        pintar(result);
-        await renderGrafica(selectedCurrency);
+        if (data) {
+            const conversionRate = data[selectedCurrency.toLowerCase()].valor;
+            const result = inputValue / conversionRate;
+            pintar(result);
+        } else {
+            console.error("error al hacer fecth en data");
+        }
     } catch (error) {
         console.error(error);
     }
@@ -39,54 +47,55 @@ monedaSelector.addEventListener('change', () => {
     renderGrafica(selectedCurrency);
 });
 
-const getAndCreateDataToChart = (data, selectedCurrency) => {
-    const labels = [];
-    const values = [];
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    for (const indicator in data) {
-        const currencyData = data[indicator][selectedCurrency.toLowerCase()];
-        if (currencyData) {
-            const fecha = new Date(currencyData.fecha);
-            if (fecha >= today) {
-                labels.push(currencyData.fecha.split(' ')[0]);
-                values.push(parseFloat(currencyData.valor.replace(',', '')));
-            }
-        }
-    }
-
+const prepararConfiguracionParaLaGrafica = (monedas) => {
+    const tipoDeGrafica = "line";
+    const nombresDeLasMonedas = Object.keys(monedas);
+    const titulo = "Monedas";
+    const colorDeLinea = "red";
+    const valores = Object.values(monedas).map((moneda) => {
+        const valor = typeof moneda.valor === 'number' ? moneda.valor : null;
+        return valor;
+    });
     return {
-        labels,
-        datasets: [
-            {
-                label: selectedCurrency,
-                borderColor: 'rgb(255, 99, 132)',
-                data: values,
-            },
-        ],
+        type: tipoDeGrafica,
+        data: {
+            labels: nombresDeLasMonedas,
+            datasets: [{
+                label: titulo,
+                backgroundColor: colorDeLinea,
+                data: valores
+            }]
+        }
     };
 };
 
-const renderGrafica = async (selectedCurrency) => {
+const renderGrafica = async () => {
     try {
         const data = await getData();
         console.log('Data from API:', data);
         if (myLineChart) {
             myLineChart.destroy();
         }
-
-        const config = {
-            type: 'line',
-            data: getAndCreateDataToChart(data, selectedCurrency),
-        };
-
-        const myChartCanvas = document.getElementById('myChart').getContext('2d');
-        myLineChart = new Chart(myChartCanvas, config);
+        const config = prepararConfiguracionParaLaGrafica(data);
+        ctx.canvas.style.backgroundColor = "white";
+        myLineChart = new Chart(ctx, config);
     } catch (error) {
         console.error(error);
     }
 };
 
-renderGrafica(monedaSelector.value);
+const main = async () => {
+    try {
+        const data = await getData();
+        const valores = Object.entries(data).map((value) => {
+            if (typeof value[1] !== 'string') {
+                console.log(value[1].codigo);
+            }
+        });
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+main();
+renderGrafica();
