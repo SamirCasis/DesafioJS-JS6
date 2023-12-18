@@ -1,27 +1,20 @@
-const btnConvertir = document.getElementById('btnConvertir');
-const inputMonto = document.getElementById('inputAmount');
-const resultElement = document.getElementById('result');
-const currencySelector = document.getElementById('tipodemoneda');
+const btnConvertir = document.querySelector('#btnConvertir');
+const inputMonto = document.querySelector('#inputMonto');
+const resultado = document.querySelector('#resultado');
+const monedaSelector = document.querySelector('#tipoDeMoneda');
 const urlApi = 'https://mindicador.cl/api/';
-
-
 const ctx = document.getElementById('myChart').getContext('2d');
 let myLineChart;
 
-const actualizarChart = (chartData) => {
-    if (myLineChart) {
-        myLineChart.destroy();
-    }
-
-    myLineChart = new Chart(ctx, {
-        type: 'line',
-        data: chartData,
-    });
+const getData = async () => {
+    const res = await fetch(urlApi);
+    const data = await res.json();
+    return data;
 };
 
 btnConvertir.addEventListener('click', () => {
     const inputValue = inputMonto.value;
-    const selectedCurrency = currenrcySelecto.value;
+    const selectedCurrency = monedaSelector.value;
     convertir(inputValue, selectedCurrency);
 });
 
@@ -31,40 +24,69 @@ const convertir = async (inputValue, selectedCurrency) => {
         const conversionRate = data[selectedCurrency.toLowerCase()].valor;
         const result = inputValue / conversionRate;
         pintar(result);
-
-
-        actualizarChart({
-            labels: Utils.days({ count: 10 }),
-            datasets: [{
-                label: 'My First Dataset',
-                data: [65, 59, 80, 81, 56, 55, result],
-                fill: false,
-                borderColor: 'rgb(75, 192, 192)',
-                tension: 0.1,
-            }],
-        });
+        await renderGrafica(selectedCurrency);
     } catch (error) {
-        console.error('Error:', error);
-    }
-};
-
-const getData = async () => {
-    const res = await fetch(urlApi);
-    const data = await res.json();
-    return data;
-};
-
-const main = async () => {
-    try {
-        const data = await getData();
-        console.log(data);
-    } catch (error) {
-        console.error('Error:', error);
+        console.error(error);
     }
 };
 
 const pintar = (result) => {
-    resultElement.textContent = `Resultado: ${result.toFixed(2)}`;
+    resultado.innerHTML = `Resultado: ${result.toFixed(2)}`;
 };
 
-main();
+monedaSelector.addEventListener('change', () => {
+    const selectedCurrency = monedaSelector.value;
+    renderGrafica(selectedCurrency);
+});
+
+const getAndCreateDataToChart = (data, selectedCurrency) => {
+    const labels = [];
+    const values = [];
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    for (const indicator in data) {
+        const currencyData = data[indicator][selectedCurrency.toLowerCase()];
+        if (currencyData) {
+            const fecha = new Date(currencyData.fecha);
+            if (fecha >= today) {
+                labels.push(currencyData.fecha.split(' ')[0]);
+                values.push(parseFloat(currencyData.valor.replace(',', '')));
+            }
+        }
+    }
+
+    return {
+        labels,
+        datasets: [
+            {
+                label: selectedCurrency,
+                borderColor: 'rgb(255, 99, 132)',
+                data: values,
+            },
+        ],
+    };
+};
+
+const renderGrafica = async (selectedCurrency) => {
+    try {
+        const data = await getData();
+        console.log('Data from API:', data);
+        if (myLineChart) {
+            myLineChart.destroy();
+        }
+
+        const config = {
+            type: 'line',
+            data: getAndCreateDataToChart(data, selectedCurrency),
+        };
+
+        const myChartCanvas = document.getElementById('myChart').getContext('2d');
+        myLineChart = new Chart(myChartCanvas, config);
+    } catch (error) {
+        console.error(error);
+    }
+};
+
+renderGrafica(monedaSelector.value);

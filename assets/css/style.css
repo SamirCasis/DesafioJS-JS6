@@ -1,14 +1,28 @@
+body {
+background-color: black;
+display: flex;
+flex-direction: column;
+align-items: center;
+}
+
+
 header {
     text-align: center;
+    color: white;
 }
 
 main {
    display: flex;
    justify-content: center;
+   align-items: center;
+   width: 50%;
    text-align: center;
+   background-color: rgb(110, 110, 164);
+   color: white;
 }
 
-section {
-   text-align: center;
+#btnConvertir {
+   background-color: blue;
+   color: white;
+   border-radius: 10px;
 }
-
